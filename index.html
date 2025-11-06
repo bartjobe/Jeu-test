@@ -1,231 +1,239 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jeu de Stratégie</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-    .fade-in { animation: fadeIn 1s ease-in forwards; opacity: 0; }
-    @keyframes fadeIn { to { opacity: 1; } }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stargate Command - Jeu de Stratégie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse-animation { animation: pulse 2s infinite; }
+
+        body {
+            background: linear-gradient(to bottom, #0f172a, #020617);
+            min-height: 100vh;
+        }
+
+        #raceSelectionOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+    </style>
 </head>
-<body class="bg-gray-900 text-white font-sans">
+<body class="text-white">
+    <div id="raceSelectionOverlay" class="fade-in">
+        <div class="bg-gray-900 p-8 rounded-lg border border-gray-700 text-center">
+            <h2 class="text-2xl font-bold mb-4">Choisissez votre race</h2>
+            <div class="flex gap-6 justify-center">
+                <button id="chooseHuman" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded font-bold">
+                    Humain 🌍
+                </button>
+                <button id="chooseAlien" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded font-bold">
+                    Alien 👽
+                </button>
+            </div>
+        </div>
+    </div>
 
-<div id="app" class="p-6"></div>
+    <div id="app" class="max-w-4xl mx-auto p-4"></div>
 
-<script>
-/* ==== Définition des races ==== */
-const RACES = {
-    humans: {
-        label: "Humains",
-        buildings: {
+    <script>
+        // =======================
+        // CONSTANTES DE JEU
+        // =======================
+        const GAME_CONFIG = {
+            PRODUCTION_RATES: {
+                NAQUADAH_PER_MINE: 10,
+                TRINIUM_PER_MINE: 5,
+                ENERGY_PER_REACTOR: 50,
+                STORAGE_PER_WAREHOUSE: 5000
+            },
+            MAX_QUEUE: 5,
+            AUTOSAVE_INTERVAL: 10000,
+            TICK_RATE: 1000
+        };
+
+        const BUILDINGS = {
             mine: {
-                label: 'Mine',
-                desc: 'Extrait des ressources',
-                cost: (level) => ({ metal: 50 * (level+1), crystal: 30 * (level+1), energy: 0 }),
-                time: 20,
+                label: 'Mine de Naquadah',
+                desc: 'Extrait du Naquadah et du Trinium',
+                cost: (level) => ({
+                    naquadah: Math.floor(60 * Math.pow(1.5, level)),
+                    trinium: Math.floor(30 * Math.pow(1.5, level)),
+                    energy: 0
+                }),
+                time: 30,
                 icon: '⛏️'
             },
-            powerPlant: {
-                label: 'Centrale électrique',
+            reactor: {
+                label: 'Réacteur à Naquadah',
                 desc: 'Génère de l\'énergie',
-                cost: (level) => ({ metal: 60 * (level+1), crystal: 40 * (level+1), energy: 0 }),
-                time: 30,
+                cost: (level) => ({
+                    naquadah: Math.floor(75 * Math.pow(1.5, level)),
+                    trinium: Math.floor(50 * Math.pow(1.5, level)),
+                    energy: 0
+                }),
+                time: 40,
                 icon: '⚡'
+            },
+            warehouse: {
+                label: 'Entrepôt',
+                desc: 'Augmente la capacité de stockage',
+                cost: (level) => ({
+                    naquadah: Math.floor(100 * Math.pow(1.4, level)),
+                    trinium: Math.floor(80 * Math.pow(1.4, level)),
+                    energy: 10
+                }),
+                time: 25,
+                icon: '📦'
+            },
+            barracks: {
+                label: 'Caserne',
+                desc: 'Entraine des soldats',
+                cost: () => ({ naquadah: 200, trinium: 150, energy: 30 }),
+                time: 35,
+                icon: '🎖️'
+            },
+            shipyard: {
+                label: 'Chantier Spatial',
+                desc: 'Construit des vaisseaux',
+                cost: () => ({ naquadah: 400, trinium: 200, energy: 50 }),
+                time: 60,
+                icon: '🚀'
+            },
+            laboratory: {
+                label: 'Laboratoire',
+                desc: 'Recherche des technologies',
+                cost: () => ({ naquadah: 300, trinium: 300, energy: 100 }),
+                time: 50,
+                icon: '🔬'
             }
-        },
-        units: {
-            soldier: {
-                label: 'Soldat',
-                cost: { metal: 10, crystal: 5, energy: 2 },
-                time: 5,
-                requires: 'mine',
+        };
+
+        const UNITS = {
+            soldiers: {
+                label: 'Soldats SG',
+                cost: { naquadah: 20, trinium: 10, energy: 5 },
+                time: 10,
+                requires: 'barracks',
                 power: 1,
                 icon: '🪖'
             },
-            fighter: {
-                label: 'Vaisseau léger',
-                cost: { metal: 100, crystal: 50, energy: 20 },
+            fighters: {
+                label: 'F-302',
+                cost: { naquadah: 100, trinium: 80, energy: 30 },
                 time: 30,
-                requires: 'powerPlant',
+                requires: 'shipyard',
                 power: 5,
-                icon: '🚀'
+                icon: '✈️'
+            },
+            cruisers: {
+                label: 'BC-304',
+                cost: { naquadah: 500, trinium: 400, energy: 200 },
+                time: 90,
+                requires: 'shipyard',
+                power: 20,
+                icon: '🛸'
             }
-        },
-        technologies: {
+        };
+
+        const TECHNOLOGIES = {
+            weapons: {
+                label: 'Armement',
+                desc: '+10% dégâts par niveau',
+                cost: (level) => ({
+                    naquadah: Math.floor(200 * Math.pow(1.8, level)),
+                    trinium: Math.floor(200 * Math.pow(1.8, level)),
+                    energy: 100 * level
+                }),
+                time: 60,
+                icon: '⚔️'
+            },
             shields: {
                 label: 'Boucliers',
                 desc: '+10% résistance par niveau',
-                cost: (level) => ({ metal: 200 * (level+1), crystal: 150 * (level+1), energy: 100 * (level+1) }),
-                time: 60,
+                cost: (level) => ({
+                    naquadah: Math.floor(300 * Math.pow(1.8, level)),
+                    trinium: Math.floor(150 * Math.pow(1.8, level)),
+                    energy: 150 * level
+                }),
+                time: 70,
+                icon: '🛡️'
+            },
+            extraction: {
+                label: 'Extraction',
+                desc: '+10% production mines',
+                cost: (level) => ({
+                    naquadah: Math.floor(150 * Math.pow(1.6, level)),
+                    trinium: Math.floor(150 * Math.pow(1.6, level)),
+                    energy: 80 * level
+                }),
+                time: 50,
+                icon: '⚙️'
+            }
+        };
+
+        const MISSIONS = [
+            {
+                id: 'patrol',
+                label: 'Patrouille',
+                desc: 'Sécuriser le périmètre',
+                requirements: { soldiers: 5 },
+                duration: 30,
+                rewards: { naquadah: 100, trinium: 50, reputation: 5 },
+                risk: 0.1,
+                icon: '🔍'
+            },
+            {
+                id: 'reconnaissance',
+                label: 'Reconnaissance Goa\'uld',
+                desc: 'Espionner une base ennemie',
+                requirements: { soldiers: 15, fighters: 1 },
+                duration: 60,
+                rewards: { naquadah: 250, trinium: 150, reputation: 15 },
+                risk: 0.25,
+                icon: '🎯'
+            },
+            {
+                id: 'defense',
+                label: 'Défense Planétaire',
+                desc: 'Repousser une attaque',
+                requirements: { soldiers: 30, fighters: 3, cruisers: 1 },
+                duration: 90,
+                rewards: { naquadah: 600, trinium: 400, reputation: 30 },
+                risk: 0.35,
                 icon: '🛡️'
             }
-        },
-        welcomeMsg: "Bienvenue, Commandant Humain. Base P3X-774 établie."
-    },
-    xelarians: {
-        label: "Xelariens",
-        buildings: {
-            crystalMine: {
-                label: 'Mine de Cristal Xelarien',
-                desc: 'Extrait du Cristal Xelarien et du Trinium',
-                cost: (level) => ({ naquadah: Math.floor(50 * Math.pow(1.5, level)), trinium: Math.floor(40 * Math.pow(1.5, level)), energy: 0 }),
-                time: 25,
-                icon: '💎'
-            },
-            energySpire: {
-                label: 'Pylône d\'Énergie',
-                desc: 'Génère de l\'énergie Xelarienne',
-                cost: (level) => ({ naquadah: Math.floor(60 * Math.pow(1.5, level)), trinium: Math.floor(30 * Math.pow(1.5, level)), energy: 0 }),
-                time: 35,
-                icon: '⚡'
+        ];
+
+        // =======================
+        // ÉTAT DU JEU
+        // =======================
+        class GameState {
+            constructor(race='human') {
+                this.race = race; // Race sélectionnée
+                this.load();
             }
-        },
-        units: {
-            xWarrior: {
-                label: 'Guerrier Xelarien',
-                cost: { naquadah: 15, trinium: 20, energy: 5 },
-                time: 8,
-                requires: 'crystalMine',
-                power: 2,
-                icon: '👽'
-            },
-            xFighter: {
-                label: 'Vaisseau Xelarien',
-                cost: { naquadah: 120, trinium: 80, energy: 40 },
-                time: 40,
-                requires: 'energySpire',
-                power: 6,
-                icon: '🛸'
-            }
-        },
-        technologies: {
-            xShields: {
-                label: 'Boucliers Xelariens',
-                desc: '+15% résistance par niveau',
-                cost: (level) => ({ naquadah: Math.floor(250 * Math.pow(1.7, level)), trinium: Math.floor(200 * Math.pow(1.7, level)), energy: 120 * level }),
-                time: 60,
-                icon: '🛡️'
-            }
-        },
-        welcomeMsg: "Bienvenue, Commandant Xelarien. Base X-9 établie."
-    }
-};
 
-let selectedRace = null;
-
-/* ==== État du jeu ==== */
-let gameState = {
-    resources: {},
-    buildings: {},
-    military: {},
-    technology: {},
-    messages: []
-};
-
-/* ==== Choix de race ==== */
-function chooseRaceUI() {
-    const container = document.getElementById('app');
-    container.innerHTML = `
-        <div class="text-center mt-20 fade-in">
-            <h1 class="text-4xl font-bold mb-6 text-white">Choisissez votre race</h1>
-            ${Object.entries(RACES).map(([key, race]) => `
-                <button 
-                    class="m-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-lg"
-                    onclick="selectRace('${key}')"
-                >
-                    ${race.label}
-                </button>
-            `).join('')}
-        </div>
-    `;
-}
-
-function selectRace(raceKey) {
-    selectedRace = RACES[raceKey];
-
-    // Initialise le jeu avec la race choisie
-    gameState.buildings = Object.keys(selectedRace.buildings).reduce((acc, key) => { acc[key] = 0; return acc; }, {});
-    gameState.military = Object.keys(selectedRace.units).reduce((acc, key) => { acc[key] = 0; return acc; }, {});
-    gameState.technology = Object.keys(selectedRace.technologies).reduce((acc, key) => { acc[key] = 0; return acc; }, {});
-    gameState.resources = {}; // vide pour l'exemple, à remplir selon la race
-    gameState.messages = [selectedRace.welcomeMsg];
-
-    render();
-}
-
-/* ==== Rendu du jeu ==== */
-function render() {
-    const container = document.getElementById('app');
-    const BUILDINGS_CURRENT = selectedRace.buildings;
-    const UNITS_CURRENT = selectedRace.units;
-    const TECHNOLOGIES_CURRENT = selectedRace.technologies;
-
-    container.innerHTML = `
-        <div class="fade-in">
-            <h2 class="text-2xl font-bold mb-4">Messages</h2>
-            <ul class="mb-6">
-                ${gameState.messages.map(msg => `<li>💬 ${msg}</li>`).join('')}
-            </ul>
-
-            <h2 class="text-2xl font-bold mb-2">Bâtiments</h2>
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                ${Object.entries(BUILDINGS_CURRENT).map(([key, b]) => `
-                    <div class="p-4 bg-gray-800 rounded">
-                        <h3 class="font-bold">${b.icon} ${b.label} (Niv ${gameState.buildings[key]})</h3>
-                        <p>${b.desc}</p>
-                        <button class="mt-2 px-3 py-1 bg-green-600 hover:bg-green-700 rounded" onclick="upgradeBuilding('${key}')">Construire / Améliorer</button>
-                    </div>
-                `).join('')}
-            </div>
-
-            <h2 class="text-2xl font-bold mb-2">Unités</h2>
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                ${Object.entries(UNITS_CURRENT).map(([key, u]) => `
-                    <div class="p-4 bg-gray-800 rounded">
-                        <h3 class="font-bold">${u.icon} ${u.label} (x${gameState.military[key]})</h3>
-                        <button class="mt-2 px-3 py-1 bg-red-600 hover:bg-red-700 rounded" onclick="trainUnit('${key}')">Former</button>
-                    </div>
-                `).join('')}
-            </div>
-
-            <h2 class="text-2xl font-bold mb-2">Technologies</h2>
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                ${Object.entries(TECHNOLOGIES_CURRENT).map(([key, t]) => `
-                    <div class="p-4 bg-gray-800 rounded">
-                        <h3 class="font-bold">${t.icon} ${t.label} (Niv ${gameState.technology[key]})</h3>
-                        <p>${t.desc}</p>
-                        <button class="mt-2 px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded" onclick="researchTech('${key}')">Rechercher</button>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-    `;
-}
-
-/* ==== Actions ==== */
-function upgradeBuilding(key) {
-    gameState.buildings[key]++;
-    gameState.messages.push(`🏗️ ${selectedRace.buildings[key].label} amélioré au niveau ${gameState.buildings[key]}`);
-    render();
-}
-
-function trainUnit(key) {
-    gameState.military[key]++;
-    gameState.messages.push(`⚔️ ${selectedRace.units[key].label} formé. Total: ${gameState.military[key]}`);
-    render();
-}
-
-function researchTech(key) {
-    gameState.technology[key]++;
-    gameState.messages.push(`🔬 ${selectedRace.technologies[key].label} recherché au niveau ${gameState.technology[key]}`);
-    render();
-}
-
-/* ==== Démarrage ==== */
-chooseRaceUI();
-
-</script>
-</body>
-</html>
+            getInitialState() {
+                // Ressources et unités de départ selon race
+                if(this.race === 'alien'){
+                    return {
+                        resources: { naquadah: 800, trinium: 500, energy: 1200 },
+                        buildings: { mine: 1, reactor: 1, warehouse: 1, barracks: 0, shipyard: 0, laboratory: 0 },
+                        military: { soldiers: 5, fighters: 1, cruisers: 0 },
+                        technology: { weapons: 1, shields: 1, extraction
