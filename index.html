@@ -2,178 +2,223 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Biome Fantasy</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+<title>Jeu Médiéval Fantastique</title>
 <style>
-  body {
-    font-family: 'Cinzel', serif;
-    background-color: #1c1c1c;
-    color: #f5f5f5;
-    margin: 0;
-    padding: 0;
-  }
-  header {
-    background: #4b2f2f;
-    padding: 15px 20px;
-    text-align: center;
-    font-size: 2em;
-    border-bottom: 3px solid #a05f5f;
-    color: #ffe4c4;
-  }
-  #game {
-    display: flex;
-    flex-direction: row;
-    min-height: 90vh;
-  }
-  #sidebar {
-    width: 220px;
-    background: #2b2b2b;
-    padding: 15px;
-    border-right: 3px solid #7f4f4f;
-  }
-  #main {
-    flex: 1;
-    padding: 15px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-  .resource {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 5px 0;
-    padding: 5px;
-    background: #3b3b3b;
-    border-radius: 6px;
-    font-weight: bold;
-  }
-  .resource img {
-    width: 24px;
-    height: 24px;
-  }
-  button {
-    width: 100%;
-    margin: 8px 0;
-    padding: 10px;
-    background: #7f4f4f;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.2s;
-  }
-  button:hover {
-    background: #a05f5f;
-  }
-  .unit, .building {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 5px 0;
-    padding: 8px;
-    background: #3f3f3f;
-    border-radius: 6px;
-    font-weight: bold;
-    animation: fadeIn 0.5s;
-  }
-  .unit img, .building img {
-    width: 32px;
-    height: 32px;
-  }
-  @keyframes fadeIn {
-    from {opacity: 0; transform: translateY(-10px);}
-    to {opacity:1; transform: translateY(0);}
-  }
+body { font-family: Arial, sans-serif; background:#2e2b2b; color:#fff; text-align:center; }
+#resources, #buildings, #units, #timers, #actions { margin: 20px auto; padding:10px; border:1px solid #555; border-radius:10px; width:80%; background:#3a3737; }
+button { margin:5px; padding:10px; border:none; border-radius:5px; background:#5a4c4c; color:#fff; cursor:pointer; }
+button:hover { background:#7a5c5c; }
+.building, .unit, .timer { margin:5px 0; }
+img { vertical-align:middle; width:24px; height:24px; margin-right:5px; }
 </style>
 </head>
 <body>
-<header>🏰 Biome Fantasy</header>
-<div id="game">
-  <div id="sidebar">
-    <h3>Ressources</h3>
-    <div id="gold" class="resource"><img src="https://img.icons8.com/emoji/48/ffffff/money-bag-emoji.png"/> Or : 100</div>
-    <div id="wood" class="resource"><img src="https://img.icons8.com/emoji/48/ffffff/deciduous-tree-emoji.png"/> Bois : 50</div>
-    <div id="food" class="resource"><img src="https://img.icons8.com/emoji/48/ffffff/honey-pot-emoji.png"/> Nourriture : 30</div>
-    <h3>Actions</h3>
-    <button onclick="build('Maison')">🏠 Construire Maison (50 Or, 20 Bois)</button>
-    <button onclick="trainUnit('Guerrier')">⚔️ Former Guerrier (30 Or, 10 Nourriture)</button>
-  </div>
-  <div id="main">
-    <div>
-      <h2>Bâtiments</h2>
-      <div id="buildings"></div>
-    </div>
-    <div>
-      <h2>Unités</h2>
-      <div id="units"></div>
-    </div>
-  </div>
+
+<h1>Le Royaume Médiéval Fantastique</h1>
+
+<div id="resources">
+  <div id="gold">Or : 0</div>
+  <div id="wood">Bois : 0</div>
+  <div id="food">Nourriture : 0</div>
 </div>
 
+<div id="buildings"><h3>Bâtiments</h3></div>
+<div id="units"><h3>Unités</h3></div>
+<div id="timers"><h3>Actions en cours</h3></div>
+<div id="actions"><h3>Actions</h3></div>
+
 <script>
-  let resources = { gold: 100, wood: 50, food: 30 };
-  let buildings = [];
-  let units = [];
+let resources = { gold:100, wood:50, food:30 };
+let buildings = [];
+let units = [];
+let timers = [];
 
-  function updateResources() {
-    document.getElementById('gold').innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/money-bag-emoji.png"/> Or : ${resources.gold}`;
-    document.getElementById('wood').innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/deciduous-tree-emoji.png"/> Bois : ${resources.wood}`;
-    document.getElementById('food').innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/honey-pot-emoji.png"/> Nourriture : ${resources.food}`;
-  }
+// Bâtiments
+const buildingTypes = [
+  { name:'Maison de Pierre', cost:{gold:50, wood:20}, buildTime:10, production:{gold:0, wood:0, food:0} },
+  { name:'Ferme Enchantée', cost:{gold:30, wood:20}, buildTime:8, production:{gold:0, wood:0, food:1} },
+  { name:'Scierie Mystique', cost:{gold:40, wood:30}, buildTime:12, production:{gold:0, wood:0.5, food:0} },
+  { name:'Mine de Mithril', cost:{gold:60, wood:40}, buildTime:15, production:{gold:1, wood:0, food:0} }
+];
 
-  function renderBuildings() {
-    const container = document.getElementById('buildings');
-    container.innerHTML = '';
-    buildings.forEach((b, i) => {
-      const div = document.createElement('div');
-      div.className = 'building';
-      div.innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/castle-emoji.png"/> ${b}`;
-      container.appendChild(div);
+// Unités
+const unitTypes = [
+  { name:'Guerrier', cost:{gold:30, food:10}, trainTime:5, hp:20, attack:5 },
+  { name:'Archer', cost:{gold:25, food:8}, trainTime:6, hp:15, attack:6 },
+  { name:'Mage', cost:{gold:50, food:15}, trainTime:12, hp:10, attack:10 }
+];
+
+// Adversaire IA
+let enemy = {
+  name: "Orc sauvage",
+  units: [
+    {name:'Guerrier', count:3, hp:20, attack:5},
+    {name:'Archer', count:2, hp:15, attack:6}
+  ]
+};
+
+function updateResources() {
+  resources.gold = Math.floor(resources.gold);
+  resources.wood = Math.floor(resources.wood);
+  resources.food = Math.floor(resources.food);
+  document.getElementById('gold').innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/money-bag-emoji.png"/> Or : ${resources.gold}`;
+  document.getElementById('wood').innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/deciduous-tree-emoji.png"/> Bois : ${resources.wood}`;
+  document.getElementById('food').innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/honey-pot-emoji.png"/> Nourriture : ${resources.food}`;
+}
+
+function renderBuildings() {
+  const container = document.getElementById('buildings');
+  container.innerHTML = '<h3>Bâtiments</h3>';
+  buildings.forEach(b => {
+    const div = document.createElement('div');
+    div.className = 'building';
+    div.innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/castle-emoji.png"/> ${b.name} (lvl ${b.level})`;
+    container.appendChild(div);
+  });
+}
+
+function renderUnits() {
+  const container = document.getElementById('units');
+  container.innerHTML = '<h3>Unités</h3>';
+  units.forEach(u => {
+    const div = document.createElement('div');
+    div.className = 'unit';
+    div.innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/swords-emoji.png"/> ${u.name} x${u.count}`;
+    container.appendChild(div);
+  });
+}
+
+function updateTimersDisplay() {
+  const container = document.getElementById('timers');
+  container.innerHTML = '<h3>Actions en cours</h3>';
+  timers.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'timer';
+    div.innerHTML = `${t.type} : ${t.name} - ${t.remaining}s`;
+    container.appendChild(div);
+  });
+}
+
+function canAfford(cost) {
+  return resources.gold >= cost.gold && resources.wood >= (cost.wood || 0) && resources.food >= (cost.food || 0);
+}
+
+function spendResources(cost) {
+  resources.gold -= cost.gold;
+  if(cost.wood) resources.wood -= cost.wood;
+  if(cost.food) resources.food -= cost.food;
+}
+
+function addActions() {
+  const container = document.getElementById('actions');
+  container.innerHTML = '<h3>Actions</h3>';
+  buildingTypes.forEach(b => {
+    const btn = document.createElement('button');
+    btn.innerText = `Construire ${b.name} (${b.cost.gold} Or, ${b.cost.wood||0} Bois, ${b.buildTime}s)`;
+    btn.onclick = () => {
+      if(canAfford(b.cost)) {
+        spendResources(b.cost);
+        timers.push({type:'Bâtiment', name:b.name, remaining:b.buildTime, building:b});
+      } else alert('Ressources insuffisantes!');
+    };
+    container.appendChild(btn);
+  });
+  unitTypes.forEach(u => {
+    const btn = document.createElement('button');
+    btn.innerText = `Former ${u.name} (${u.cost.gold} Or, ${u.cost.food||0} Nourriture, ${u.trainTime}s)`;
+    btn.onclick = () => {
+      if(canAfford(u.cost)) {
+        spendResources(u.cost);
+        timers.push({type:'Unité', name:u.name, remaining:u.trainTime, unit:u});
+      } else alert('Ressources insuffisantes!');
+    };
+    container.appendChild(btn);
+  });
+
+  // Bouton attaque
+  const attackBtn = document.createElement('button');
+  attackBtn.innerText = `Attaquer l'ennemi (${enemy.name})`;
+  attackBtn.onclick = () => {
+    if(units.length===0) { alert("Vous n'avez pas d'unités pour attaquer!"); return; }
+    resolveCombat();
+  };
+  container.appendChild(attackBtn);
+}
+
+function resolveCombat() {
+  let playerUnits = units.map(u => ({...u, hp:unitTypes.find(t=>t.name===u.name).hp}));
+  let enemyUnits = enemy.units.map(u => ({...u}));
+
+  while(playerUnits.some(u=>u.count>0) && enemyUnits.some(u=>u.count>0)) {
+    // Joueur attaque
+    playerUnits.forEach(u=>{
+      if(u.count>0){
+        let target = enemyUnits.find(e=>e.count>0);
+        if(target){
+          target.hp -= unitTypes.find(t=>t.name===u.name).attack * u.count;
+          if(target.hp <=0) target.count =0;
+        }
+      }
+    });
+    // Ennemi attaque
+    enemyUnits.forEach(e=>{
+      if(e.count>0){
+        let target = playerUnits.find(u=>u.count>0);
+        if(target){
+          target.hp -= e.attack * e.count;
+          if(target.hp <=0) target.count=0;
+        }
+      }
     });
   }
 
-  function renderUnits() {
-    const container = document.getElementById('units');
-    container.innerHTML = '';
-    units.forEach((u, i) => {
-      const div = document.createElement('div');
-      div.className = 'unit';
-      div.innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/swords-emoji.png"/> ${u}`;
-      container.appendChild(div);
-    });
+  if(playerUnits.some(u=>u.count>0)) {
+    alert("Victoire! Vous gagnez 50 Or et 30 Bois!");
+    resources.gold +=50;
+    resources.wood +=30;
+  } else {
+    alert("Défaite! Vos unités ont été détruites!");
+    units = [];
   }
+  updateResources();
+  renderUnits();
+}
 
-  function build(type) {
-    if (type === 'Maison' && resources.gold >= 50 && resources.wood >= 20) {
-      resources.gold -= 50;
-      resources.wood -= 20;
-      buildings.push('Maison');
-      updateResources();
-      renderBuildings();
-    } else {
-      alert('Ressources insuffisantes pour construire ' + type);
+addActions();
+
+// Timer global toutes les secondes
+setInterval(() => {
+  // Production des bâtiments
+  buildings.forEach(b => {
+    resources.gold += b.production.gold;
+    resources.wood += b.production.wood;
+    resources.food += b.production.food;
+  });
+
+  // Décrémenter timers
+  for(let i=timers.length-1; i>=0; i--) {
+    timers[i].remaining -= 1;
+    if(timers[i].remaining <=0) {
+      if(timers[i].type==='Bâtiment') {
+        let exists = buildings.find(b => b.name===timers[i].name);
+        if(exists) exists.level +=1;
+        else buildings.push({...timers[i].building, level:1});
+      }
+      if(timers[i].type==='Unité') {
+        let exists = units.find(u => u.name===timers[i].name);
+        if(exists) exists.count +=1;
+        else units.push({name:timers[i].unit.name, count:1});
+      }
+      timers.splice(i,1);
     }
   }
 
-  function trainUnit(type) {
-    if (type === 'Guerrier' && resources.gold >= 30 && resources.food >= 10) {
-      resources.gold -= 30;
-      resources.food -= 10;
-      units.push('Guerrier');
-      updateResources();
-      renderUnits();
-    } else {
-      alert('Ressources insuffisantes pour former ' + type);
-    }
-  }
-
-  // Initial render
   updateResources();
   renderBuildings();
   renderUnits();
+  updateTimersDisplay();
+},1000);
 </script>
+
 </body>
 </html>
