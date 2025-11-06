@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stargate Command - Jeu de Stratégie</title>
+    <title>Commandement BiomeVivants - Jeu de Stratégie</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @keyframes fadeIn {
@@ -19,7 +19,7 @@
         .pulse-animation { animation: pulse 2s infinite; }
 
         body {
-            background: linear-gradient(to bottom, #0f172a, #020617);
+            background: linear-gradient(to bottom, #061010, #001414);
             min-height: 100vh;
         }
     </style>
@@ -33,10 +33,10 @@
         // =======================
         const GAME_CONFIG = {
             PRODUCTION_RATES: {
-                NAQUADAH_PER_MINE: 10,
-                TRINIUM_PER_MINE: 5,
-                ENERGY_PER_REACTOR: 50,
-                STORAGE_PER_WAREHOUSE: 5000
+                CRYSTAL_PER_EXTRACTOR: 10,
+                ESSENCE_PER_EXTRACTOR: 5,
+                ENERGY_PER_CORE: 50,
+                STORAGE_PER_HUB: 5000
             },
             MAX_QUEUE: 5,
             AUTOSAVE_INTERVAL: 10000,
@@ -44,118 +44,118 @@
         };
 
         const BUILDINGS = {
-            mine: {
-                label: 'Mine de Naquadah',
-                desc: 'Extrait du Naquadah et du Trinium',
+            extractor: {
+                label: 'Extracteur Cristallin',
+                desc: 'Récupère cristaux et essences',
                 cost: (level) => ({
-                    naquadah: Math.floor(60 * Math.pow(1.5, level)),
-                    trinium: Math.floor(30 * Math.pow(1.5, level)),
+                    crystal: Math.floor(60 * Math.pow(1.5, level)),
+                    essence: Math.floor(30 * Math.pow(1.5, level)),
                     energy: 0
                 }),
                 time: 30,
                 icon: '⛏️'
             },
-            reactor: {
-                label: 'Réacteur à Naquadah',
-                desc: 'Génère de l\'énergie',
+            core: {
+                label: 'Noyau d’Énergie',
+                desc: 'Produit l’énergie nécessaire',
                 cost: (level) => ({
-                    naquadah: Math.floor(75 * Math.pow(1.5, level)),
-                    trinium: Math.floor(50 * Math.pow(1.5, level)),
+                    crystal: Math.floor(75 * Math.pow(1.5, level)),
+                    essence: Math.floor(50 * Math.pow(1.5, level)),
                     energy: 0
                 }),
                 time: 40,
                 icon: '⚡'
             },
-            warehouse: {
-                label: 'Entrepôt',
-                desc: 'Augmente la capacité de stockage',
+            hub: {
+                label: 'Hub de Stockage',
+                desc: 'Augmente la capacité de ressources',
                 cost: (level) => ({
-                    naquadah: Math.floor(100 * Math.pow(1.4, level)),
-                    trinium: Math.floor(80 * Math.pow(1.4, level)),
+                    crystal: Math.floor(100 * Math.pow(1.4, level)),
+                    essence: Math.floor(80 * Math.pow(1.4, level)),
                     energy: 10
                 }),
                 time: 25,
                 icon: '📦'
             },
-            barracks: {
-                label: 'Caserne',
-                desc: 'Entraine des soldats',
-                cost: () => ({ naquadah: 200, trinium: 150, energy: 30 }),
+            nursery: {
+                label: 'Nurserie',
+                desc: 'Forme des unités biologiques',
+                cost: () => ({ crystal: 200, essence: 150, energy: 30 }),
                 time: 35,
-                icon: '🎖️'
+                icon: '🪴'
             },
-            shipyard: {
-                label: 'Chantier Spatial',
-                desc: 'Construit des vaisseaux',
-                cost: () => ({ naquadah: 400, trinium: 200, energy: 50 }),
+            portal: {
+                label: 'Portail de Migration',
+                desc: 'Construit des unités volantes',
+                cost: () => ({ crystal: 400, essence: 200, energy: 50 }),
                 time: 60,
-                icon: '🚀'
+                icon: '🌌'
             },
-            laboratory: {
-                label: 'Laboratoire',
-                desc: 'Recherche des technologies',
-                cost: () => ({ naquadah: 300, trinium: 300, energy: 100 }),
+            lab: {
+                label: 'Laboratoire d’Évolution',
+                desc: 'Améliore les technologies biologiques',
+                cost: () => ({ crystal: 300, essence: 300, energy: 100 }),
                 time: 50,
                 icon: '🔬'
             }
         };
 
         const UNITS = {
-            soldiers: {
-                label: 'Soldats SG',
-                cost: { naquadah: 20, trinium: 10, energy: 5 },
+            spores: {
+                label: 'Spores Guerrières',
+                cost: { crystal: 20, essence: 10, energy: 5 },
                 time: 10,
-                requires: 'barracks',
+                requires: 'nursery',
                 power: 1,
-                icon: '🪖'
+                icon: '🍃'
             },
-            fighters: {
-                label: 'F-302',
-                cost: { naquadah: 100, trinium: 80, energy: 30 },
+            flyers: {
+                label: 'Ailes Cristallines',
+                cost: { crystal: 100, essence: 80, energy: 30 },
                 time: 30,
-                requires: 'shipyard',
+                requires: 'portal',
                 power: 5,
-                icon: '✈️'
+                icon: '🦋'
             },
-            cruisers: {
-                label: 'BC-304',
-                cost: { naquadah: 500, trinium: 400, energy: 200 },
+            leviathans: {
+                label: 'Leviathans',
+                cost: { crystal: 500, essence: 400, energy: 200 },
                 time: 90,
-                requires: 'shipyard',
+                requires: 'portal',
                 power: 20,
-                icon: '🛸'
+                icon: '🐉'
             }
         };
 
         const TECHNOLOGIES = {
-            weapons: {
-                label: 'Armement',
+            vigor: {
+                label: 'Vigueur Biologique',
                 desc: '+10% dégâts par niveau',
                 cost: (level) => ({
-                    naquadah: Math.floor(200 * Math.pow(1.8, level)),
-                    trinium: Math.floor(200 * Math.pow(1.8, level)),
+                    crystal: Math.floor(200 * Math.pow(1.8, level)),
+                    essence: Math.floor(200 * Math.pow(1.8, level)),
                     energy: 100 * level
                 }),
                 time: 60,
                 icon: '⚔️'
             },
-            shields: {
-                label: 'Boucliers',
+            shield: {
+                label: 'Carapace Protectrice',
                 desc: '+10% résistance par niveau',
                 cost: (level) => ({
-                    naquadah: Math.floor(300 * Math.pow(1.8, level)),
-                    trinium: Math.floor(150 * Math.pow(1.8, level)),
+                    crystal: Math.floor(300 * Math.pow(1.8, level)),
+                    essence: Math.floor(150 * Math.pow(1.8, level)),
                     energy: 150 * level
                 }),
                 time: 70,
                 icon: '🛡️'
             },
-            extraction: {
-                label: 'Extraction',
-                desc: '+10% production mines',
+            metabolism: {
+                label: 'Métabolisme Optimisé',
+                desc: '+10% production extracteurs',
                 cost: (level) => ({
-                    naquadah: Math.floor(150 * Math.pow(1.6, level)),
-                    trinium: Math.floor(150 * Math.pow(1.6, level)),
+                    crystal: Math.floor(150 * Math.pow(1.6, level)),
+                    essence: Math.floor(150 * Math.pow(1.6, level)),
                     energy: 80 * level
                 }),
                 time: 50,
@@ -165,32 +165,32 @@
 
         const MISSIONS = [
             {
-                id: 'patrol',
-                label: 'Patrouille',
-                desc: 'Sécuriser le périmètre',
-                requirements: { soldiers: 5 },
+                id: 'scout',
+                label: 'Patrouille Biome',
+                desc: 'Explorer les alentours',
+                requirements: { spores: 5 },
                 duration: 30,
-                rewards: { naquadah: 100, trinium: 50, reputation: 5 },
+                rewards: { crystal: 100, essence: 50, reputation: 5 },
                 risk: 0.1,
                 icon: '🔍'
             },
             {
-                id: 'reconnaissance',
-                label: 'Reconnaissance Goa\'uld',
-                desc: 'Espionner une base ennemie',
-                requirements: { soldiers: 15, fighters: 1 },
+                id: 'recon',
+                label: 'Reconnaissance Biome',
+                desc: 'Étudier un territoire inconnu',
+                requirements: { spores: 15, flyers: 1 },
                 duration: 60,
-                rewards: { naquadah: 250, trinium: 150, reputation: 15 },
+                rewards: { crystal: 250, essence: 150, reputation: 15 },
                 risk: 0.25,
                 icon: '🎯'
             },
             {
                 id: 'defense',
-                label: 'Défense Planétaire',
-                desc: 'Repousser une attaque',
-                requirements: { soldiers: 30, fighters: 3, cruisers: 1 },
+                label: 'Défense du Nexus',
+                desc: 'Protéger le biome',
+                requirements: { spores: 30, flyers: 3, leviathans: 1 },
                 duration: 90,
-                rewards: { naquadah: 600, trinium: 400, reputation: 30 },
+                rewards: { crystal: 600, essence: 400, reputation: 30 },
                 risk: 0.35,
                 icon: '🛡️'
             }
@@ -206,13 +206,13 @@
 
             getInitialState() {
                 return {
-                    resources: { naquadah: 500, trinium: 300, energy: 1000 },
-                    buildings: { mine: 1, reactor: 1, warehouse: 1, barracks: 0, shipyard: 0, laboratory: 0 },
-                    military: { soldiers: 10, fighters: 0, cruisers: 0 },
-                    technology: { weapons: 1, shields: 1, extraction: 1 },
+                    resources: { crystal: 500, essence: 300, energy: 1000 },
+                    buildings: { extractor: 1, core: 1, hub: 1, nursery: 0, portal: 0, lab: 0 },
+                    military: { spores: 10, flyers: 0, leviathans: 0 },
+                    technology: { vigor: 1, shield: 1, metabolism: 1 },
                     buildQueue: [],
                     activeMissions: [],
-                    messages: ['Bienvenue, Commandant. Base P3X-774 établie.'],
+                    messages: ['Bienvenue, Commandant. Nexus établi.'],
                     reputation: 0,
                     completedMissions: 0,
                     time: 0,
@@ -221,7 +221,7 @@
             }
 
             load() {
-                const saved = localStorage.getItem('stargateGame');
+                const saved = localStorage.getItem('biomeGame');
                 if (saved) {
                     Object.assign(this, JSON.parse(saved));
                 } else {
@@ -230,12 +230,12 @@
             }
 
             save() {
-                localStorage.setItem('stargateGame', JSON.stringify(this));
+                localStorage.setItem('biomeGame', JSON.stringify(this));
             }
 
             reset() {
                 if (confirm('Réinitialiser le jeu ?')) {
-                    localStorage.removeItem('stargateGame');
+                    localStorage.removeItem('biomeGame');
                     Object.assign(this, this.getInitialState());
                     this.addMessage('Jeu réinitialisé.');
                 }
@@ -246,670 +246,4 @@
             }
 
             formatNumber(num) {
-                if (num >= 1000000) return `${(num/1000000).toFixed(1)}M`;
-                if (num >= 1000) return `${(num/1000).toFixed(1)}k`;
-                return Math.floor(num);
-            }
-
-            getMaxStorage() {
-                return this.buildings.warehouse * GAME_CONFIG.PRODUCTION_RATES.STORAGE_PER_WAREHOUSE;
-            }
-
-            getMilitaryPower() {
-                const bonus = 1 + (this.technology.weapons * 0.1);
-                return Object.entries(UNITS).reduce((total, [key, unit]) => {
-                    return total + (this.military[key] || 0) * (unit.power || 0) * bonus;
-                }, 0);
-            }
-
-            canBuild(cost) {
-                return this.resources.naquadah >= cost.naquadah &&
-                       this.resources.trinium >= cost.trinium &&
-                       this.resources.energy >= cost.energy;
-            }
-        }
-
-        // =======================
-        // MOTEUR DE JEU
-        // =======================
-        class GameEngine {
-            constructor(state) {
-                this.state = state;
-                this.lastSave = Date.now();
-            }
-
-            tick() {
-                this.produceResources();
-                this.processBuildQueue();
-                this.processMissions();
-                this.state.time++;
-                
-                // Sauvegarde auto
-                if (Date.now() - this.lastSave > GAME_CONFIG.AUTOSAVE_INTERVAL) {
-                    this.state.save();
-                    this.lastSave = Date.now();
-                }
-            }
-
-            produceResources() {
-                const extractionBonus = 1 + (this.state.technology.extraction * 0.1);
-                const naqProd = this.state.buildings.mine * GAME_CONFIG.PRODUCTION_RATES.NAQUADAH_PER_MINE * extractionBonus;
-                const triProd = this.state.buildings.mine * GAME_CONFIG.PRODUCTION_RATES.TRINIUM_PER_MINE * extractionBonus;
-                const energyProd = this.state.buildings.reactor * GAME_CONFIG.PRODUCTION_RATES.ENERGY_PER_REACTOR;
-                
-                const energyCons = 
-                    this.state.buildings.mine * 5 +
-                    this.state.buildings.shipyard * 10 +
-                    this.state.buildings.laboratory * 15 +
-                    this.state.buildings.warehouse * 2;
-
-                const maxStorage = this.state.getMaxStorage();
-                
-                this.state.resources.naquadah = Math.min(this.state.resources.naquadah + naqProd, maxStorage);
-                this.state.resources.trinium = Math.min(this.state.resources.trinium + triProd, maxStorage);
-                this.state.resources.energy = Math.max(0, Math.min(
-                    this.state.resources.energy + energyProd - energyCons,
-                    this.state.buildings.reactor * 1000
-                ));
-            }
-
-            processBuildQueue() {
-                if (this.state.buildQueue.length === 0) return;
-                
-                this.state.buildQueue[0].timeLeft--;
-                
-                if (this.state.buildQueue[0].timeLeft <= 0) {
-                    const completed = this.state.buildQueue.shift();
-                    this.completeConstruction(completed);
-                }
-            }
-
-            completeConstruction(item) {
-                if (item.type === 'building') {
-                    this.state.buildings[item.name] = (this.state.buildings[item.name] || 0) + 1;
-                } else if (item.type === 'unit') {
-                    this.state.military[item.name] = (this.state.military[item.name] || 0) + 1;
-                } else if (item.type === 'tech') {
-                    this.state.technology[item.name] = (this.state.technology[item.name] || 0) + 1;
-                }
-                this.state.addMessage(`✓ Terminé: ${item.label}`);
-            }
-
-            processMissions() {
-                this.state.activeMissions = this.state.activeMissions.map(mission => ({
-                    ...mission,
-                    timeLeft: mission.timeLeft - 1
-                }));
-
-                const completed = this.state.activeMissions.filter(m => m.timeLeft <= 0);
-                this.state.activeMissions = this.state.activeMissions.filter(m => m.timeLeft > 0);
-
-                completed.forEach(mission => {
-                    const success = Math.random() > mission.risk;
-                    if (success) {
-                        this.state.resources.naquadah += mission.rewards.naquadah;
-                        this.state.resources.trinium += mission.rewards.trinium;
-                        this.state.reputation += mission.rewards.reputation;
-                        this.state.completedMissions++;
-                        this.state.addMessage(`✓ Mission réussie: ${mission.label}`);
-                    } else {
-                        this.state.addMessage(`✗ Mission échouée: ${mission.label}`);
-                    }
-                });
-            }
-
-            startConstruction(name, label, cost, time, type) {
-                if (!this.state.canBuild(cost)) {
-                    this.state.addMessage('⚠ Ressources insuffisantes !');
-                    return false;
-                }
-                
-                if (this.state.buildQueue.length >= GAME_CONFIG.MAX_QUEUE) {
-                    this.state.addMessage('⚠ File pleine !');
-                    return false;
-                }
-
-                this.state.resources.naquadah -= cost.naquadah;
-                this.state.resources.trinium -= cost.trinium;
-                this.state.resources.energy -= cost.energy;
-                
-                this.state.buildQueue.push({ name, label, timeLeft: time, type });
-                this.state.addMessage(`▶ Construction: ${label}`);
-                return true;
-            }
-
-            startMission(mission) {
-                const canStart = Object.entries(mission.requirements).every(([unit, amount]) => {
-                    return (this.state.military[unit] || 0) >= amount;
-                });
-
-                if (!canStart) {
-                    this.state.addMessage('⚠ Forces insuffisantes !');
-                    return false;
-                }
-
-                this.state.activeMissions.push({
-                    ...mission,
-                    timeLeft: mission.duration
-                });
-                this.state.addMessage(`🚀 Mission: ${mission.label}`);
-                return true;
-            }
-        }
-
-        // =======================
-        // INTERFACE UTILISATEUR
-        // =======================
-        class UI {
-            constructor(state, engine) {
-                this.state = state;
-                this.engine = engine;
-                this.container = document.getElementById('app');
-            }
-
-            render() {
-                this.container.innerHTML = `
-                    ${this.renderHeader()}
-                    ${this.renderMessages()}
-                    ${this.renderTabs()}
-                    ${this.renderContent()}
-                `;
-                this.attachEventListeners();
-            }
-
-            renderHeader() {
-                return `
-                    <div class="text-center mb-6 fade-in">
-                        <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 via-purple-500 to-blue-600 bg-clip-text text-transparent">
-                            COMMANDEMENT STELLAIRE
-                        </h1>
-                        <p class="text-gray-400 text-sm">Base P3X-774 • Secteur Milky Way</p>
-                        <div class="flex justify-center gap-4 mt-3 text-sm">
-                            <span class="text-blue-300">💎 ${this.state.formatNumber(this.state.resources.naquadah)}</span>
-                            <span class="text-purple-300">🔷 ${this.state.formatNumber(this.state.resources.trinium)}</span>
-                            <span class="text-yellow-300">⚡ ${this.state.formatNumber(this.state.resources.energy)}</span>
-                            <span class="text-green-300">⚔ ${Math.floor(this.state.getMilitaryPower())}</span>
-                            <span class="text-orange-300">★ ${this.state.reputation}</span>
-                        </div>
-                    </div>
-                `;
-            }
-
-            renderMessages() {
-                return `
-                    <div class="bg-gray-900/80 rounded-lg p-4 mb-4 border border-gray-700 backdrop-blur fade-in">
-                        <div class="flex items-center gap-2 text-green-400 text-sm mb-2">
-                            <span>📡</span>
-                            <span class="font-bold">Messages du Commandement</span>
-                        </div>
-                        ${this.state.messages.map(msg => `
-                            <p class="text-xs text-gray-300 mb-1">» ${msg}</p>
-                        `).join('')}
-                    </div>
-                `;
-            }
-
-            renderTabs() {
-                const tabs = [
-                    { id: 'overview', label: 'Aperçu', icon: '🌍' },
-                    { id: 'buildings', label: 'Bâtiments', icon: '🏗️' },
-                    { id: 'military', label: 'Militaire', icon: '🚀' },
-                    { id: 'technology', label: 'Techno', icon: '🔬' },
-                    { id: 'missions', label: 'Missions', icon: '🎯' },
-                    { id: 'settings', label: 'Paramètres', icon: '⚙️' }
-                ];
-
-                return `
-                    <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
-                        ${tabs.map(tab => `
-                            <button 
-                                data-tab="${tab.id}"
-                                class="tab-btn flex items-center gap-2 px-4 py-2 rounded font-bold whitespace-nowrap transition-all ${
-                                    this.state.activeTab === tab.id
-                                        ? 'bg-blue-600 text-white shadow-lg scale-105'
-                                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                                }"
-                            >
-                                <span>${tab.icon}</span>
-                                <span class="text-sm">${tab.label}</span>
-                            </button>
-                        `).join('')}
-                    </div>
-                `;
-            }
-
-            renderContent() {
-                const content = {
-                    overview: () => this.renderOverview(),
-                    buildings: () => this.renderBuildings(),
-                    military: () => this.renderMilitary(),
-                    technology: () => this.renderTechnology(),
-                    missions: () => this.renderMissions(),
-                    settings: () => this.renderSettings()
-                };
-
-                return `
-                    <div class="bg-gray-900/70 rounded-lg p-4 border border-gray-700 backdrop-blur min-h-96 fade-in">
-                        ${content[this.state.activeTab]()}
-                    </div>
-                `;
-            }
-
-            renderOverview() {
-                return `
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-3 gap-3">
-                            ${this.renderResourceCard('Naquadah', '💎', this.state.resources.naquadah, this.state.getMaxStorage(), 'blue')}
-                            ${this.renderResourceCard('Trinium', '🔷', this.state.resources.trinium, this.state.getMaxStorage(), 'purple')}
-                            ${this.renderResourceCard('Énergie', '⚡', this.state.resources.energy, this.state.buildings.reactor * 1000, 'yellow')}
-                        </div>
-
-                        ${this.state.buildQueue.length > 0 ? `
-                            <div class="bg-orange-900/30 p-3 rounded border border-orange-700">
-                                <div class="font-bold text-orange-300 mb-2">⏱️ File de construction (${this.state.buildQueue.length}/${GAME_CONFIG.MAX_QUEUE})</div>
-                                ${this.state.buildQueue.map((item, idx) => `
-                                    <div class="text-sm text-white mb-1">
-                                        ${idx === 0 ? '▶' : '⏸'} ${item.label} - ${item.timeLeft}s
-                                    </div>
-                                `).join('')}
-                            </div>
-                        ` : ''}
-
-                        ${this.state.activeMissions.length > 0 ? `
-                            <div class="bg-blue-900/30 p-3 rounded border border-blue-700">
-                                <div class="font-bold text-blue-300 mb-2">🚀 Missions en cours</div>
-                                ${this.state.activeMissions.map(mission => `
-                                    <div class="text-sm text-white mb-1">
-                                        ${mission.icon} ${mission.label} - ${mission.timeLeft}s
-                                    </div>
-                                `).join('')}
-                            </div>
-                        ` : ''}
-
-                        <div class="bg-gray-800/50 p-4 rounded border border-gray-700">
-                            <h3 class="font-bold text-white mb-3">🎖️ Forces Militaires</h3>
-                            <div class="grid grid-cols-2 gap-2 text-sm">
-                                ${Object.entries(UNITS).map(([key, unit]) => `
-                                    <div class="text-gray-300">
-                                        ${unit.icon} ${unit.label}: <span class="text-white font-bold">${this.state.military[key] || 0}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            renderResourceCard(name, icon, current, max, color) {
-                const percentage = (current / max) * 100;
-                return `
-                    <div class="bg-${color}-900/30 p-3 rounded border border-${color}-700">
-                        <div class="flex items-center gap-2 text-${color}-300 text-sm mb-1">
-                            <span>${icon}</span>
-                            <span>${name}</span>
-                        </div>
-                        <div class="text-xl font-bold text-white">${this.state.formatNumber(current)}</div>
-                        <div class="text-xs text-gray-400">Max: ${this.state.formatNumber(max)}</div>
-                        <div class="w-full bg-gray-700 rounded-full h-1.5 mt-2">
-                            <div class="bg-${color}-500 h-1.5 rounded-full" style="width: ${percentage}%"></div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            renderBuildings() {
-                return `
-                    <div class="space-y-3">
-                        ${Object.entries(BUILDINGS).map(([key, building]) => {
-                            const level = this.state.buildings[key] || 0;
-                            const cost = building.cost(level + 1);
-                            const canAfford = this.state.canBuild(cost);
-                            
-                            return `
-                                <div class="bg-gray-800/50 p-3 rounded border border-gray-700">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <div class="flex-1">
-                                            <h3 class="font-bold text-white">${building.icon} ${building.label} (Niv. ${level})</h3>
-                                            <p class="text-xs text-gray-400">${building.desc}</p>
-                                        </div>
-                                        <button 
-                                            data-build="${key}"
-                                            data-type="building"
-                                            class="build-btn px-3 py-1 rounded text-sm font-bold ${
-                                                canAfford && this.state.buildQueue.length < GAME_CONFIG.MAX_QUEUE
-                                                    ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
-                                                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                            }"
-                                            ${!canAfford || this.state.buildQueue.length >= GAME_CONFIG.MAX_QUEUE ? 'disabled' : ''}
-                                        >
-                                            Améliorer
-                                        </button>
-                                    </div>
-                                    <div class="flex gap-3 text-xs">
-                                        <span class="text-blue-300">💎 ${this.state.formatNumber(cost.naquadah)}</span>
-                                        <span class="text-purple-300">🔷 ${this.state.formatNumber(cost.trinium)}</span>
-                                        <span class="text-yellow-300">⚡ ${this.state.formatNumber(cost.energy)}</span>
-                                        <span class="text-gray-400">⏱ ${building.time}s</span>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
-            }
-
-            renderMilitary() {
-                return `
-                    <div class="space-y-3">
-                        <div class="bg-yellow-900/30 p-3 rounded border border-yellow-700 mb-4">
-                            <div class="text-sm text-yellow-200">
-                                ⚔️ Puissance totale: <span class="font-bold">${Math.floor(this.state.getMilitaryPower())}</span>
-                            </div>
-                        </div>
-
-                        ${Object.entries(UNITS).map(([key, unit]) => {
-                            const canAfford = this.state.canBuild(unit.cost);
-                            const hasBuilding = this.state.buildings[unit.requires] > 0;
-                            
-                            return `
-                                <div class="bg-gray-800/50 p-3 rounded border border-gray-700">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <div class="flex-1">
-                                            <h3 class="font-bold text-white">${unit.icon} ${unit.label}</h3>
-                                            <p class="text-xs text-gray-400">Possédés: ${this.state.military[key] || 0} | Puissance: ${unit.power}</p>
-                                            ${!hasBuilding ? `<p class="text-xs text-red-400">Requiert: ${BUILDINGS[unit.requires].label}</p>` : ''}
-                                        </div>
-                                        <button 
-                                            data-build="${key}"
-                                            data-type="unit"
-                                            class="build-btn px-3 py-1 rounded text-sm font-bold ${
-                                                canAfford && hasBuilding && this.state.buildQueue.length < GAME_CONFIG.MAX_QUEUE
-                                                    ? 'bg-red-600 hover:bg-red-700 text-white cursor-pointer'
-                                                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                            }"
-                                            ${!canAfford || !hasBuilding || this.state.buildQueue.length >= GAME_CONFIG.MAX_QUEUE ? 'disabled' : ''}
-                                        >
-                                            Construire
-                                        </button>
-                                    </div>
-                                    <div class="flex gap-3 text-xs">
-                                        <span class="text-blue-300">💎 ${this.state.formatNumber(unit.cost.naquadah)}</span>
-                                        <span class="text-purple-300">🔷 ${this.state.formatNumber(unit.cost.trinium)}</span>
-                                        <span class="text-yellow-300">⚡ ${this.state.formatNumber(unit.cost.energy)}</span>
-                                        <span class="text-gray-400">⏱ ${unit.time}s</span>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
-            }
-
-            renderTechnology() {
-                return `
-                    <div class="space-y-3">
-                        ${Object.entries(TECHNOLOGIES).map(([key, tech]) => {
-                            const level = this.state.technology[key] || 0;
-                            const cost = tech.cost(level + 1);
-                            const canAfford = this.state.canBuild(cost);
-                            const hasLab = this.state.buildings.laboratory > 0;
-                            
-                            return `
-                                <div class="bg-gray-800/50 p-3 rounded border border-gray-700">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <div class="flex-1">
-                                            <h3 class="font-bold text-white">${tech.icon} ${tech.label} (Niv. ${level})</h3>
-                                            <p class="text-xs text-green-400">${tech.desc}</p>
-                                            ${!hasLab ? `<p class="text-xs text-red-400">Requiert: Laboratoire</p>` : ''}
-                                        </div>
-                                        <button 
-                                            data-build="${key}"
-                                            data-type="tech"
-                                            class="build-btn px-3 py-1 rounded text-sm font-bold ${
-                                                canAfford && hasLab && this.state.buildQueue.length < GAME_CONFIG.MAX_QUEUE
-                                                    ? 'bg-green-600 hover:bg-green-700 text-white cursor-pointer'
-                                                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                            }"
-                                            ${!canAfford || !hasLab || this.state.buildQueue.length >= GAME_CONFIG.MAX_QUEUE ? 'disabled' : ''}
-                                        >
-                                            Rechercher
-                                        </button>
-                                    </div>
-                                    <div class="flex gap-3 text-xs">
-                                        <span class="text-blue-300">💎 ${this.state.formatNumber(cost.naquadah)}</span>
-                                        <span class="text-purple-300">🔷 ${this.state.formatNumber(cost.trinium)}</span>
-                                        <span class="text-yellow-300">⚡ ${this.state.formatNumber(cost.energy)}</span>
-                                        <span class="text-gray-400">⏱ ${tech.time}s</span>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
-            }
-
-            renderMissions() {
-                return `
-                    <div class="space-y-3">
-                        <div class="bg-blue-900/30 p-3 rounded border border-blue-700 mb-4">
-                            <div class="text-sm text-blue-200">
-                                🎯 Missions disponibles: ${MISSIONS.length}
-                            </div>
-                            <div class="text-xs text-gray-300 mt-1">
-                                Missions complétées: ${this.state.completedMissions}
-                            </div>
-                        </div>
-
-                        ${MISSIONS.map(mission => {
-                            const canStart = Object.entries(mission.requirements).every(([unit, amount]) => {
-                                return (this.state.military[unit] || 0) >= amount;
-                            });
-                            const isActive = this.state.activeMissions.some(m => m.id === mission.id);
-                            
-                            return `
-                                <div class="bg-gray-800/50 p-3 rounded border border-gray-700">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <div class="flex-1">
-                                            <h3 class="font-bold text-white">${mission.icon} ${mission.label}</h3>
-                                            <p class="text-xs text-gray-400 mb-2">${mission.desc}</p>
-                                            
-                                            <div class="text-xs space-y-1">
-                                                <div class="text-gray-300">
-                                                    <span class="font-bold">Prérequis:</span> 
-                                                    ${Object.entries(mission.requirements).map(([unit, amount]) => 
-                                                        `${UNITS[unit].label} x${amount}`
-                                                    ).join(', ')}
-                                                </div>
-                                                <div class="text-green-400">
-                                                    <span class="font-bold">Récompenses:</span> 
-                                                    ${mission.rewards.naquadah} Naq, ${mission.rewards.trinium} Tri, +${mission.rewards.reputation} Rep
-                                                </div>
-                                                <div class="${mission.risk > 0.3 ? 'text-red-400' : 'text-yellow-400'}">
-                                                    <span class="font-bold">Risque:</span> ${Math.floor(mission.risk * 100)}%
-                                                </div>
-                                                <div class="text-gray-400">
-                                                    <span class="font-bold">Durée:</span> ${mission.duration}s
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <button 
-                                            data-mission="${mission.id}"
-                                            class="mission-btn px-3 py-1 rounded text-sm font-bold whitespace-nowrap ${
-                                                canStart && !isActive
-                                                    ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
-                                                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                            }"
-                                            ${!canStart || isActive ? 'disabled' : ''}
-                                        >
-                                            ${isActive ? 'En cours' : 'Lancer'}
-                                        </button>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
-            }
-
-            renderSettings() {
-                return `
-                    <div class="space-y-4">
-                        <div class="bg-gray-800/50 p-4 rounded border border-gray-700">
-                            <h3 class="font-bold text-white mb-3">⚙️ Paramètres & Statistiques</h3>
-                            
-                            <div class="space-y-3">
-                                <div class="bg-blue-900/30 p-3 rounded border border-blue-700">
-                                    <div class="text-sm text-white mb-2">
-                                        ⏱️ Temps de jeu: ${Math.floor(this.state.time / 60)} minutes
-                                    </div>
-                                    <div class="text-xs text-gray-400">
-                                        Missions complétées: ${this.state.completedMissions}
-                                    </div>
-                                    <div class="text-xs text-gray-400">
-                                        Réputation: ${this.state.reputation}
-                                    </div>
-                                </div>
-
-                                <button
-                                    id="exportBtn"
-                                    class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-bold"
-                                >
-                                    📥 Exporter la sauvegarde
-                                </button>
-
-                                <button
-                                    id="resetBtn"
-                                    class="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold"
-                                >
-                                    🔄 Réinitialiser le jeu
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="bg-purple-900/30 p-4 rounded border border-purple-700">
-                            <h4 class="font-bold text-white mb-2">📱 Version Web 1.0</h4>
-                            <p class="text-xs text-gray-300 mb-2">
-                                Jeu de stratégie inspiré de Stargate SG-1
-                            </p>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <p>✓ Sauvegarde automatique</p>
-                                <p>✓ File de construction (max ${GAME_CONFIG.MAX_QUEUE})</p>
-                                <p>✓ Système de missions</p>
-                                <p>✓ Recherches technologiques</p>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-900/50 p-3 rounded border border-gray-700">
-                            <h4 class="text-sm font-bold text-gray-200 mb-2">ℹ️ Crédits</h4>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <p>Développé avec ❤️ par un fan de Stargate</p>
-                                <p>Technologies: HTML5, TailwindCSS, JavaScript</p>
-                                <p>Univers Stargate © MGM</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            attachEventListeners() {
-                // Navigation onglets
-                document.querySelectorAll('.tab-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        this.state.activeTab = e.currentTarget.dataset.tab;
-                        this.render();
-                    });
-                });
-
-                // Boutons de construction
-                document.querySelectorAll('.build-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const button = e.currentTarget;
-                        const name = button.dataset.build;
-                        const type = button.dataset.type;
-                        
-                        let item, cost, time;
-                        
-                        if (type === 'building') {
-                            item = BUILDINGS[name];
-                            const level = this.state.buildings[name] || 0;
-                            cost = item.cost(level + 1);
-                            time = item.time;
-                        } else if (type === 'unit') {
-                            item = UNITS[name];
-                            cost = item.cost;
-                            time = item.time;
-                        } else if (type === 'tech') {
-                            item = TECHNOLOGIES[name];
-                            const level = this.state.technology[name] || 0;
-                            cost = item.cost(level + 1);
-                            time = item.time;
-                        }
-                        
-                        if (this.engine.startConstruction(name, item.label, cost, time, type)) {
-                            this.render();
-                        }
-                    });
-                });
-
-                // Boutons de mission
-                document.querySelectorAll('.mission-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const missionId = e.currentTarget.dataset.mission;
-                        const mission = MISSIONS.find(m => m.id === missionId);
-                        
-                        if (mission && this.engine.startMission(mission)) {
-                            this.render();
-                        }
-                    });
-                });
-
-                // Bouton export
-                const exportBtn = document.getElementById('exportBtn');
-                if (exportBtn) {
-                    exportBtn.addEventListener('click', () => {
-                        const saveData = JSON.stringify(this.state, null, 2);
-                        const blob = new Blob([saveData], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `stargate-save-${Date.now()}.json`;
-                        a.click();
-                        this.state.addMessage('💾 Sauvegarde exportée !');
-                        this.render();
-                    });
-                }
-
-                // Bouton reset
-                const resetBtn = document.getElementById('resetBtn');
-                if (resetBtn) {
-                    resetBtn.addEventListener('click', () => {
-                        this.state.reset();
-                        this.render();
-                    });
-                }
-            }
-        }
-
-        // =======================
-        // INITIALISATION
-        // =======================
-        const gameState = new GameState();
-        const gameEngine = new GameEngine(gameState);
-        const ui = new UI(gameState, gameEngine);
-
-        // Boucle de jeu
-        setInterval(() => {
-            gameEngine.tick();
-            ui.render();
-        }, GAME_CONFIG.TICK_RATE);
-
-        // Premier rendu
-        ui.render();
-
-        // Message de bienvenue console
-        console.log('%c🌌 STARGATE COMMAND 🌌', 'font-size: 20px; color: #3b82f6; font-weight: bold;');
-        console.log('%cBienvenue, Commandant!', 'font-size: 14px; color: #10b981;');
-        console.log('Version Web 1.0 - Développé avec Claude AI');
-    </script>
-</body>
-</html>
+                if (num >= 1000000) return `${(num/1000000).toFixed(1
