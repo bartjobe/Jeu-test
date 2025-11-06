@@ -2,223 +2,230 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Jeu Médiéval Fantastique</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jeu de Stratégie</title>
+<script src="https://cdn.tailwindcss.com"></script>
 <style>
-body { font-family: Arial, sans-serif; background:#2e2b2b; color:#fff; text-align:center; }
-#resources, #buildings, #units, #timers, #actions { margin: 20px auto; padding:10px; border:1px solid #555; border-radius:10px; width:80%; background:#3a3737; }
-button { margin:5px; padding:10px; border:none; border-radius:5px; background:#5a4c4c; color:#fff; cursor:pointer; }
-button:hover { background:#7a5c5c; }
-.building, .unit, .timer { margin:5px 0; }
-img { vertical-align:middle; width:24px; height:24px; margin-right:5px; }
+    .fade-in { animation: fadeIn 1s ease-in forwards; opacity: 0; }
+    @keyframes fadeIn { to { opacity: 1; } }
 </style>
 </head>
-<body>
+<body class="bg-gray-900 text-white font-sans">
 
-<h1>Le Royaume Médiéval Fantastique</h1>
-
-<div id="resources">
-  <div id="gold">Or : 0</div>
-  <div id="wood">Bois : 0</div>
-  <div id="food">Nourriture : 0</div>
-</div>
-
-<div id="buildings"><h3>Bâtiments</h3></div>
-<div id="units"><h3>Unités</h3></div>
-<div id="timers"><h3>Actions en cours</h3></div>
-<div id="actions"><h3>Actions</h3></div>
+<div id="app" class="p-6"></div>
 
 <script>
-let resources = { gold:100, wood:50, food:30 };
-let buildings = [];
-let units = [];
-let timers = [];
-
-// Bâtiments
-const buildingTypes = [
-  { name:'Maison de Pierre', cost:{gold:50, wood:20}, buildTime:10, production:{gold:0, wood:0, food:0} },
-  { name:'Ferme Enchantée', cost:{gold:30, wood:20}, buildTime:8, production:{gold:0, wood:0, food:1} },
-  { name:'Scierie Mystique', cost:{gold:40, wood:30}, buildTime:12, production:{gold:0, wood:0.5, food:0} },
-  { name:'Mine de Mithril', cost:{gold:60, wood:40}, buildTime:15, production:{gold:1, wood:0, food:0} }
-];
-
-// Unités
-const unitTypes = [
-  { name:'Guerrier', cost:{gold:30, food:10}, trainTime:5, hp:20, attack:5 },
-  { name:'Archer', cost:{gold:25, food:8}, trainTime:6, hp:15, attack:6 },
-  { name:'Mage', cost:{gold:50, food:15}, trainTime:12, hp:10, attack:10 }
-];
-
-// Adversaire IA
-let enemy = {
-  name: "Orc sauvage",
-  units: [
-    {name:'Guerrier', count:3, hp:20, attack:5},
-    {name:'Archer', count:2, hp:15, attack:6}
-  ]
+/* ==== Définition des races ==== */
+const RACES = {
+    humans: {
+        label: "Humains",
+        buildings: {
+            mine: {
+                label: 'Mine',
+                desc: 'Extrait des ressources',
+                cost: (level) => ({ metal: 50 * (level+1), crystal: 30 * (level+1), energy: 0 }),
+                time: 20,
+                icon: '⛏️'
+            },
+            powerPlant: {
+                label: 'Centrale électrique',
+                desc: 'Génère de l\'énergie',
+                cost: (level) => ({ metal: 60 * (level+1), crystal: 40 * (level+1), energy: 0 }),
+                time: 30,
+                icon: '⚡'
+            }
+        },
+        units: {
+            soldier: {
+                label: 'Soldat',
+                cost: { metal: 10, crystal: 5, energy: 2 },
+                time: 5,
+                requires: 'mine',
+                power: 1,
+                icon: '🪖'
+            },
+            fighter: {
+                label: 'Vaisseau léger',
+                cost: { metal: 100, crystal: 50, energy: 20 },
+                time: 30,
+                requires: 'powerPlant',
+                power: 5,
+                icon: '🚀'
+            }
+        },
+        technologies: {
+            shields: {
+                label: 'Boucliers',
+                desc: '+10% résistance par niveau',
+                cost: (level) => ({ metal: 200 * (level+1), crystal: 150 * (level+1), energy: 100 * (level+1) }),
+                time: 60,
+                icon: '🛡️'
+            }
+        },
+        welcomeMsg: "Bienvenue, Commandant Humain. Base P3X-774 établie."
+    },
+    xelarians: {
+        label: "Xelariens",
+        buildings: {
+            crystalMine: {
+                label: 'Mine de Cristal Xelarien',
+                desc: 'Extrait du Cristal Xelarien et du Trinium',
+                cost: (level) => ({ naquadah: Math.floor(50 * Math.pow(1.5, level)), trinium: Math.floor(40 * Math.pow(1.5, level)), energy: 0 }),
+                time: 25,
+                icon: '💎'
+            },
+            energySpire: {
+                label: 'Pylône d\'Énergie',
+                desc: 'Génère de l\'énergie Xelarienne',
+                cost: (level) => ({ naquadah: Math.floor(60 * Math.pow(1.5, level)), trinium: Math.floor(30 * Math.pow(1.5, level)), energy: 0 }),
+                time: 35,
+                icon: '⚡'
+            }
+        },
+        units: {
+            xWarrior: {
+                label: 'Guerrier Xelarien',
+                cost: { naquadah: 15, trinium: 20, energy: 5 },
+                time: 8,
+                requires: 'crystalMine',
+                power: 2,
+                icon: '👽'
+            },
+            xFighter: {
+                label: 'Vaisseau Xelarien',
+                cost: { naquadah: 120, trinium: 80, energy: 40 },
+                time: 40,
+                requires: 'energySpire',
+                power: 6,
+                icon: '🛸'
+            }
+        },
+        technologies: {
+            xShields: {
+                label: 'Boucliers Xelariens',
+                desc: '+15% résistance par niveau',
+                cost: (level) => ({ naquadah: Math.floor(250 * Math.pow(1.7, level)), trinium: Math.floor(200 * Math.pow(1.7, level)), energy: 120 * level }),
+                time: 60,
+                icon: '🛡️'
+            }
+        },
+        welcomeMsg: "Bienvenue, Commandant Xelarien. Base X-9 établie."
+    }
 };
 
-function updateResources() {
-  resources.gold = Math.floor(resources.gold);
-  resources.wood = Math.floor(resources.wood);
-  resources.food = Math.floor(resources.food);
-  document.getElementById('gold').innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/money-bag-emoji.png"/> Or : ${resources.gold}`;
-  document.getElementById('wood').innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/deciduous-tree-emoji.png"/> Bois : ${resources.wood}`;
-  document.getElementById('food').innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/honey-pot-emoji.png"/> Nourriture : ${resources.food}`;
+let selectedRace = null;
+
+/* ==== État du jeu ==== */
+let gameState = {
+    resources: {},
+    buildings: {},
+    military: {},
+    technology: {},
+    messages: []
+};
+
+/* ==== Choix de race ==== */
+function chooseRaceUI() {
+    const container = document.getElementById('app');
+    container.innerHTML = `
+        <div class="text-center mt-20 fade-in">
+            <h1 class="text-4xl font-bold mb-6 text-white">Choisissez votre race</h1>
+            ${Object.entries(RACES).map(([key, race]) => `
+                <button 
+                    class="m-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold text-lg"
+                    onclick="selectRace('${key}')"
+                >
+                    ${race.label}
+                </button>
+            `).join('')}
+        </div>
+    `;
 }
 
-function renderBuildings() {
-  const container = document.getElementById('buildings');
-  container.innerHTML = '<h3>Bâtiments</h3>';
-  buildings.forEach(b => {
-    const div = document.createElement('div');
-    div.className = 'building';
-    div.innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/castle-emoji.png"/> ${b.name} (lvl ${b.level})`;
-    container.appendChild(div);
-  });
+function selectRace(raceKey) {
+    selectedRace = RACES[raceKey];
+
+    // Initialise le jeu avec la race choisie
+    gameState.buildings = Object.keys(selectedRace.buildings).reduce((acc, key) => { acc[key] = 0; return acc; }, {});
+    gameState.military = Object.keys(selectedRace.units).reduce((acc, key) => { acc[key] = 0; return acc; }, {});
+    gameState.technology = Object.keys(selectedRace.technologies).reduce((acc, key) => { acc[key] = 0; return acc; }, {});
+    gameState.resources = {}; // vide pour l'exemple, à remplir selon la race
+    gameState.messages = [selectedRace.welcomeMsg];
+
+    render();
 }
 
-function renderUnits() {
-  const container = document.getElementById('units');
-  container.innerHTML = '<h3>Unités</h3>';
-  units.forEach(u => {
-    const div = document.createElement('div');
-    div.className = 'unit';
-    div.innerHTML = `<img src="https://img.icons8.com/emoji/48/ffffff/swords-emoji.png"/> ${u.name} x${u.count}`;
-    container.appendChild(div);
-  });
+/* ==== Rendu du jeu ==== */
+function render() {
+    const container = document.getElementById('app');
+    const BUILDINGS_CURRENT = selectedRace.buildings;
+    const UNITS_CURRENT = selectedRace.units;
+    const TECHNOLOGIES_CURRENT = selectedRace.technologies;
+
+    container.innerHTML = `
+        <div class="fade-in">
+            <h2 class="text-2xl font-bold mb-4">Messages</h2>
+            <ul class="mb-6">
+                ${gameState.messages.map(msg => `<li>💬 ${msg}</li>`).join('')}
+            </ul>
+
+            <h2 class="text-2xl font-bold mb-2">Bâtiments</h2>
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                ${Object.entries(BUILDINGS_CURRENT).map(([key, b]) => `
+                    <div class="p-4 bg-gray-800 rounded">
+                        <h3 class="font-bold">${b.icon} ${b.label} (Niv ${gameState.buildings[key]})</h3>
+                        <p>${b.desc}</p>
+                        <button class="mt-2 px-3 py-1 bg-green-600 hover:bg-green-700 rounded" onclick="upgradeBuilding('${key}')">Construire / Améliorer</button>
+                    </div>
+                `).join('')}
+            </div>
+
+            <h2 class="text-2xl font-bold mb-2">Unités</h2>
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                ${Object.entries(UNITS_CURRENT).map(([key, u]) => `
+                    <div class="p-4 bg-gray-800 rounded">
+                        <h3 class="font-bold">${u.icon} ${u.label} (x${gameState.military[key]})</h3>
+                        <button class="mt-2 px-3 py-1 bg-red-600 hover:bg-red-700 rounded" onclick="trainUnit('${key}')">Former</button>
+                    </div>
+                `).join('')}
+            </div>
+
+            <h2 class="text-2xl font-bold mb-2">Technologies</h2>
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                ${Object.entries(TECHNOLOGIES_CURRENT).map(([key, t]) => `
+                    <div class="p-4 bg-gray-800 rounded">
+                        <h3 class="font-bold">${t.icon} ${t.label} (Niv ${gameState.technology[key]})</h3>
+                        <p>${t.desc}</p>
+                        <button class="mt-2 px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded" onclick="researchTech('${key}')">Rechercher</button>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
 }
 
-function updateTimersDisplay() {
-  const container = document.getElementById('timers');
-  container.innerHTML = '<h3>Actions en cours</h3>';
-  timers.forEach(t => {
-    const div = document.createElement('div');
-    div.className = 'timer';
-    div.innerHTML = `${t.type} : ${t.name} - ${t.remaining}s`;
-    container.appendChild(div);
-  });
+/* ==== Actions ==== */
+function upgradeBuilding(key) {
+    gameState.buildings[key]++;
+    gameState.messages.push(`🏗️ ${selectedRace.buildings[key].label} amélioré au niveau ${gameState.buildings[key]}`);
+    render();
 }
 
-function canAfford(cost) {
-  return resources.gold >= cost.gold && resources.wood >= (cost.wood || 0) && resources.food >= (cost.food || 0);
+function trainUnit(key) {
+    gameState.military[key]++;
+    gameState.messages.push(`⚔️ ${selectedRace.units[key].label} formé. Total: ${gameState.military[key]}`);
+    render();
 }
 
-function spendResources(cost) {
-  resources.gold -= cost.gold;
-  if(cost.wood) resources.wood -= cost.wood;
-  if(cost.food) resources.food -= cost.food;
+function researchTech(key) {
+    gameState.technology[key]++;
+    gameState.messages.push(`🔬 ${selectedRace.technologies[key].label} recherché au niveau ${gameState.technology[key]}`);
+    render();
 }
 
-function addActions() {
-  const container = document.getElementById('actions');
-  container.innerHTML = '<h3>Actions</h3>';
-  buildingTypes.forEach(b => {
-    const btn = document.createElement('button');
-    btn.innerText = `Construire ${b.name} (${b.cost.gold} Or, ${b.cost.wood||0} Bois, ${b.buildTime}s)`;
-    btn.onclick = () => {
-      if(canAfford(b.cost)) {
-        spendResources(b.cost);
-        timers.push({type:'Bâtiment', name:b.name, remaining:b.buildTime, building:b});
-      } else alert('Ressources insuffisantes!');
-    };
-    container.appendChild(btn);
-  });
-  unitTypes.forEach(u => {
-    const btn = document.createElement('button');
-    btn.innerText = `Former ${u.name} (${u.cost.gold} Or, ${u.cost.food||0} Nourriture, ${u.trainTime}s)`;
-    btn.onclick = () => {
-      if(canAfford(u.cost)) {
-        spendResources(u.cost);
-        timers.push({type:'Unité', name:u.name, remaining:u.trainTime, unit:u});
-      } else alert('Ressources insuffisantes!');
-    };
-    container.appendChild(btn);
-  });
+/* ==== Démarrage ==== */
+chooseRaceUI();
 
-  // Bouton attaque
-  const attackBtn = document.createElement('button');
-  attackBtn.innerText = `Attaquer l'ennemi (${enemy.name})`;
-  attackBtn.onclick = () => {
-    if(units.length===0) { alert("Vous n'avez pas d'unités pour attaquer!"); return; }
-    resolveCombat();
-  };
-  container.appendChild(attackBtn);
-}
-
-function resolveCombat() {
-  let playerUnits = units.map(u => ({...u, hp:unitTypes.find(t=>t.name===u.name).hp}));
-  let enemyUnits = enemy.units.map(u => ({...u}));
-
-  while(playerUnits.some(u=>u.count>0) && enemyUnits.some(u=>u.count>0)) {
-    // Joueur attaque
-    playerUnits.forEach(u=>{
-      if(u.count>0){
-        let target = enemyUnits.find(e=>e.count>0);
-        if(target){
-          target.hp -= unitTypes.find(t=>t.name===u.name).attack * u.count;
-          if(target.hp <=0) target.count =0;
-        }
-      }
-    });
-    // Ennemi attaque
-    enemyUnits.forEach(e=>{
-      if(e.count>0){
-        let target = playerUnits.find(u=>u.count>0);
-        if(target){
-          target.hp -= e.attack * e.count;
-          if(target.hp <=0) target.count=0;
-        }
-      }
-    });
-  }
-
-  if(playerUnits.some(u=>u.count>0)) {
-    alert("Victoire! Vous gagnez 50 Or et 30 Bois!");
-    resources.gold +=50;
-    resources.wood +=30;
-  } else {
-    alert("Défaite! Vos unités ont été détruites!");
-    units = [];
-  }
-  updateResources();
-  renderUnits();
-}
-
-addActions();
-
-// Timer global toutes les secondes
-setInterval(() => {
-  // Production des bâtiments
-  buildings.forEach(b => {
-    resources.gold += b.production.gold;
-    resources.wood += b.production.wood;
-    resources.food += b.production.food;
-  });
-
-  // Décrémenter timers
-  for(let i=timers.length-1; i>=0; i--) {
-    timers[i].remaining -= 1;
-    if(timers[i].remaining <=0) {
-      if(timers[i].type==='Bâtiment') {
-        let exists = buildings.find(b => b.name===timers[i].name);
-        if(exists) exists.level +=1;
-        else buildings.push({...timers[i].building, level:1});
-      }
-      if(timers[i].type==='Unité') {
-        let exists = units.find(u => u.name===timers[i].name);
-        if(exists) exists.count +=1;
-        else units.push({name:timers[i].unit.name, count:1});
-      }
-      timers.splice(i,1);
-    }
-  }
-
-  updateResources();
-  renderBuildings();
-  renderUnits();
-  updateTimersDisplay();
-},1000);
 </script>
-
 </body>
 </html>
